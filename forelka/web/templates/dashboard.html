@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Forelka Userbot{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h2><i class="bi bi-speedometer2 me-2"></i>Dashboard</h2>
+        <p class="text-muted">Overview of your Forelka Userbot instance</p>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <!-- Status Card -->
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="bi bi-circle-fill status-indicator status-running"></i>
+                <h5 class="card-title">Status</h5>
+                <h3 class="text-success" id="bot-status">Running</h3>
+            </div>
+        </div>
+    </div>
+
+    <!-- Accounts Card -->
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="bi bi-people me-2"></i>
+                <h5 class="card-title">Accounts</h5>
+                <h3 id="account-count">0</h3>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modules Card -->
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="bi bi-puzzle me-2"></i>
+                <h5 class="card-title">Modules</h5>
+                <h3 id="module-count">0</h3>
+            </div>
+        </div>
+    </div>
+
+    <!-- Uptime Card -->
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="bi bi-clock me-2"></i>
+                <h5 class="card-title">Uptime</h5>
+                <h3 id="uptime">00:00:00</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <!-- System Info -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>System Information</h5>
+            </div>
+            <div class="card-body">
+                <div id="system-info">
+                    <p class="text-muted">Loading...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-lightning me-2"></i>Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-2">
+                        <button class="btn btn-primary w-100" onclick="location.href='{{ url_for('web_routes.accounts') }}'">
+                            <i class="bi bi-plus-circle me-2"></i>Add Account
+                        </button>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <button class="btn btn-success w-100" onclick="reloadModules()">
+                            <i class="bi bi-arrow-clockwise me-2"></i>Reload Modules
+                        </button>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <button class="btn btn-info w-100" onclick="location.href='{{ url_for('web_routes.logs') }}'">
+                            <i class="bi bi-file-text me-2"></i>View Logs
+                        </button>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <button class="btn btn-warning w-100" onclick="location.href='{{ url_for('web_routes.settings') }}'">
+                            <i class="bi bi-gear me-2"></i>Settings
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <!-- Recent Logs -->
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-file-text me-2"></i>Recent Logs</h5>
+                <button class="btn btn-sm btn-outline-primary" onclick="refreshLogs()">
+                    <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="recent-logs" style="max-height: 300px; overflow-y: auto; font-family: monospace;">
+                    <p class="text-muted">Loading logs...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Dashboard functionality
+    let refreshInterval;
+    
+    $(document).ready(function() {
+        loadDashboardData();
+        loadRecentLogs();
+        
+        // Auto-refresh every 10 seconds
+        refreshInterval = setInterval(loadDashboardData, 10000);
+    });
+    
+    function loadDashboardData() {
+        $.get('/api/status')
+            .done(function(data) {
+                if (data.success) {
+                    $('#bot-status').text(data.status).removeClass('text-success text-danger').addClass(data.status === 'running' ? 'text-success' : 'text-danger');
+                    $('#account-count').text(data.accounts || 0);
+                    $('#module-count').text(data.modules || 0);
+                    $('#uptime').text(data.uptime || '00:00:00');
+                    
+                    // Update system info
+                    if (data.system_info) {
+                        let sysInfo = data.system_info;
+                        $('#system-info').html(`
+                            <p><strong>Platform:</strong> ${sysInfo.platform}</p>
+                            <p><strong>Python:</strong> ${sysInfo.python_version.split(' ')[0]}</p>
+                            <p><strong>User:</strong> ${sysInfo.user}</p>
+                            <p><strong>Docker:</strong> ${sysInfo.is_docker ? 'Yes' : 'No'}</p>
+                        `);
+                    }
+                }
+            })
+            .fail(function() {
+                $('#bot-status').text('Unknown').removeClass('text-success').addClass('text-warning');
+            });
+    }
+    
+    function loadRecentLogs() {
+        $.get('/api/logs')
+            .done(function(data) {
+                if (data.success) {
+                    let logsHtml = '';
+                    data.logs.forEach(log => {
+                        let logClass = 'log-info';
+                        if (log.includes('[WARNING]')) logClass = 'log-warning';
+                        if (log.includes('[ERROR]')) logClass = 'log-error';
+                        if (log.includes('[DEBUG]')) logClass = 'log-debug';
+                        
+                        logsHtml += `<div class="log-entry ${logClass}">${log}</div>`;
+                    });
+                    $('#recent-logs').html(logsHtml || '<p class="text-muted">No logs available</p>');
+                }
+            })
+            .fail(function() {
+                $('#recent-logs').html('<p class="text-danger">Failed to load logs</p>');
+            });
+    }
+    
+    function refreshLogs() {
+        loadRecentLogs();
+    }
+    
+    function reloadModules() {
+        if (confirm('Are you sure you want to reload all modules?')) {
+            // This would need to be implemented in the backend
+            alert('Module reload functionality would be implemented here');
+        }
+    }
+</script>
+{% endblock %}
