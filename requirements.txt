@@ -1,16 +1,9 @@
 # Core dependencies
-pyrogram>=2.0.0
-tgcrypto>=1.2.0
+kurigram
+tgcrypto
 
 # Web interface
 flask>=2.0.0
 flask-login>=0.6.0
 
-# Inline bot
-pyTelegramBotAPI>=4.0.0
-
-# Database
-sqlite3
-
-# Utilities
-telebot
+aiogram
